@@ -1,0 +1,4 @@
+#include "resource_ids.h"
+
+IDR_HPATCHZ     RCDATA "tools/hpatchz.exe"
+IDR_OGGRE_DEC   RCDATA "tools/OGGRE_dec.exe"

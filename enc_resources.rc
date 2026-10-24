@@ -1,0 +1,9 @@
+#include "resource_ids.h"
+
+IDR_KVS_EXTRACT RCDATA "tools/kvs_extract.exe"
+IDR_KV2OGG      RCDATA "tools/kv2ogg.exe"
+IDR_BINCAT      RCDATA "tools/bincat.exe"
+IDR_HDIFFZ      RCDATA "tools/hdiffz.exe"
+IDR_HPATCHZ     RCDATA "tools/hpatchz.exe"
+IDR_OGGRE_ENC   RCDATA "tools/OGGRE_enc.exe"
+IDR_OGGRE_DEC   RCDATA "tools/OGGRE_dec.exe"

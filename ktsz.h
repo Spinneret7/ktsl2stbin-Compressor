@@ -114,8 +114,8 @@ uint32_t crc32_update(uint32_t crc, const void *data, size_t len);
 int crc32_file(const wchar_t *path, uint32_t *crc_out, uint64_t *size_out);
 int same_file_contents(const wchar_t *a, const wchar_t *b);
 
-/* External tool launching. */
-int tools_find(KtszTools *tools, const wchar_t *exe_dir, int for_encoder);
+/* Embedded tools. */
+int tools_prepare(KtszTools *tools, int for_encoder);
 int run_tool(const wchar_t *exe, const wchar_t *args, const wchar_t *workdir,
              const wchar_t *log_path, int *exit_code);
 void print_last_log_lines(const wchar_t *log_path, int max_lines);

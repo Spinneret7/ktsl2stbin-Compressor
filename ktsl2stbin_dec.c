@@ -214,17 +214,18 @@ int wmain(int argc, wchar_t **argv)
 
     wprintf(L"Folder: %ls\n", exe_dir);
 
-    if (!tools_find(&tools, exe_dir, 0)) {
+    if (!tools_prepare(&tools, 0)) {
         pause_if_console();
         return 1;
     }
 
-    wprintf(L"Tools : %ls\n\n", tools.tools_dir);
+    wprintf(L"Tools : embedded (extracted to %ls)\n\n", tools.tools_dir);
 
     wsl_init(&files);
     if (list_files(exe_dir, L"*.ktsz", &files) != 0) {
         wprintf(L"error: cannot scan the folder\n");
         wsl_free(&files);
+        delete_tree(tools.tools_dir);
         pause_if_console();
         return 1;
     }
@@ -232,6 +233,7 @@ int wmain(int argc, wchar_t **argv)
     if (files.count == 0) {
         wprintf(L"No .ktsz archives found in this folder.\n");
         wsl_free(&files);
+        delete_tree(tools.tools_dir);
         pause_if_console();
         return 0;
     }
@@ -274,6 +276,7 @@ int wmain(int argc, wchar_t **argv)
     wprintf(L"\nDone: %d restored, %d already present, %d failed.\n",
             restored, skipped, failed);
 
+    delete_tree(tools.tools_dir);
     wsl_free(&files);
     pause_if_console();
     return failed ? 1 : 0;

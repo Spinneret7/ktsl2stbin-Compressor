@@ -394,22 +394,19 @@ int wmain(int argc, wchar_t **argv)
 
     wprintf(L"Folder: %ls\n", exe_dir);
 
-    if (!tools_find(&tools, exe_dir, 1)) {
+    if (!tools_prepare(&tools, 1)) {
         pause_if_console();
         return 1;
     }
 
-    wprintf(L"Tools : %ls\n", tools.tools_dir);
-
-    if (!tools.bincat[0])
-        wprintf(L"Note  : bincat.exe not found; using built-in concatenation.\n");
-
+    wprintf(L"Tools : embedded (extracted to %ls)\n", tools.tools_dir);
     wprintf(L"\n");
 
     wsl_init(&files);
     if (list_files(exe_dir, L"*.ktsl2stbin", &files) != 0) {
         wprintf(L"error: cannot scan the folder\n");
         wsl_free(&files);
+        delete_tree(tools.tools_dir);
         pause_if_console();
         return 1;
     }
@@ -417,6 +414,7 @@ int wmain(int argc, wchar_t **argv)
     if (files.count == 0) {
         wprintf(L"No .ktsl2stbin files found in this folder.\n");
         wsl_free(&files);
+        delete_tree(tools.tools_dir);
         pause_if_console();
         return 0;
     }
@@ -451,6 +449,7 @@ int wmain(int argc, wchar_t **argv)
 
     wprintf(L"\nDone: %d compressed, %d failed.\n", converted, failed);
 
+    delete_tree(tools.tools_dir);
     wsl_free(&files);
     pause_if_console();
     return failed ? 1 : 0;

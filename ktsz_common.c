@@ -3,6 +3,7 @@
  */
 
 #include "ktsz.h"
+#include "resource_ids.h"
 
 #include <string.h>
 #include <wctype.h>
@@ -644,78 +645,86 @@ done:
 }
 
 /* ------------------------------------------------------------------ */
-/* External tools                                                      */
+/* Embedded tools                                                      */
 /* ------------------------------------------------------------------ */
 
-static int find_tool_in(wchar_t *out, size_t cap, const wchar_t *dir, const wchar_t *name)
+static int extract_resource(int id, const wchar_t *path)
 {
-    wchar_t path[KTSZ_MAX_PATH];
+    HRSRC hres;
+    HGLOBAL hglob;
+    const void *data;
+    DWORD size;
+    FILE *f;
+    size_t written;
 
-    if (pjoin(path, KTSZ_MAX_PATH, dir, name) != 0)
-        return 0;
+    hres = FindResourceW(NULL, MAKEINTRESOURCEW(id), (LPCWSTR)RT_RCDATA);
+    if (!hres)
+        return -1;
 
-    if (!file_exists(path))
-        return 0;
+    size = SizeofResource(NULL, hres);
+    if (size == 0)
+        return -1;
 
-    if (wcslen(path) + 1 > cap)
-        return 0;
+    hglob = LoadResource(NULL, hres);
+    if (!hglob)
+        return -1;
 
-    wstr_copy(out, cap, path);
-    return 1;
+    data = LockResource(hglob);
+    if (!data)
+        return -1;
+
+    f = _wfopen(path, L"wb");
+    if (!f)
+        return -1;
+
+    written = fwrite(data, 1, size, f);
+    if (written != size || fclose(f) != 0)
+        return -1;
+
+    return 0;
 }
 
-int tools_find(KtszTools *tools, const wchar_t *exe_dir, int for_encoder)
+int tools_prepare(KtszTools *tools, int for_encoder)
 {
-    wchar_t tools_dir[KTSZ_MAX_PATH];
-    wchar_t sub_dir[KTSZ_MAX_PATH];
-
     struct {
-        wchar_t       *dst;
+        int            id;
         const wchar_t *name;
+        wchar_t       *dst;
         int            req_enc;
         int            req_dec;
     } entries[] = {
-        { tools->kvs_extract, L"kvs_extract.exe", 1, 0 },
-        { tools->kv2ogg,      L"kv2ogg.exe",      1, 0 },
-        { tools->bincat,      L"bincat.exe",      0, 0 },
-        { tools->hdiffz,      L"hdiffz.exe",      1, 0 },
-        { tools->hpatchz,     L"hpatchz.exe",     1, 1 },
-        { tools->oggre_enc,   L"OGGRE_enc.exe",   1, 0 },
-        { tools->oggre_dec,   L"OGGRE_dec.exe",   1, 1 },
+        { IDR_KVS_EXTRACT, L"kvs_extract.exe", tools->kvs_extract, 1, 0 },
+        { IDR_KV2OGG,      L"kv2ogg.exe",      tools->kv2ogg,      1, 0 },
+        { IDR_BINCAT,      L"bincat.exe",      tools->bincat,      1, 0 },
+        { IDR_HDIFFZ,      L"hdiffz.exe",      tools->hdiffz,      1, 0 },
+        { IDR_HPATCHZ,     L"hpatchz.exe",     tools->hpatchz,     1, 1 },
+        { IDR_OGGRE_ENC,   L"OGGRE_enc.exe",   tools->oggre_enc,   1, 0 },
+        { IDR_OGGRE_DEC,   L"OGGRE_dec.exe",   tools->oggre_dec,   1, 1 },
     };
 
     memset(tools, 0, sizeof(*tools));
 
-    if (pjoin(tools_dir, KTSZ_MAX_PATH, exe_dir, L"Tools") != 0)
+    if (make_temp_dir(tools->tools_dir, KTSZ_MAX_PATH) != 0) {
+        wprintf(L"error: cannot create a temp folder for the embedded tools\n");
         return 0;
-
-    if (!dir_exists(tools_dir))
-        wstr_copy(tools_dir, KTSZ_MAX_PATH, exe_dir);
-
-    wstr_copy(tools->tools_dir, KTSZ_MAX_PATH, tools_dir);
+    }
 
     for (size_t i = 0; i < sizeof(entries) / sizeof(entries[0]); i++) {
         int required = for_encoder ? entries[i].req_enc : entries[i].req_dec;
+        wchar_t path[KTSZ_MAX_PATH];
 
-        if (find_tool_in(entries[i].dst, KTSZ_MAX_PATH, tools_dir, entries[i].name))
+        if (!required)
             continue;
 
-        if (find_tool_in(entries[i].dst, KTSZ_MAX_PATH, exe_dir, entries[i].name))
-            continue;
-
-        if (!wcscmp(entries[i].name, L"kv2ogg.exe")) {
-            if (pjoin(sub_dir, KTSZ_MAX_PATH, exe_dir, L"kv2ogg") == 0 &&
-                find_tool_in(entries[i].dst, KTSZ_MAX_PATH, sub_dir, entries[i].name))
-                continue;
-        }
-
-        if (required) {
-            wprintf(L"error: missing required tool: %ls\n", entries[i].name);
-            wprintf(L"       looked in:\n");
-            wprintf(L"         %ls\n", tools_dir);
-            wprintf(L"         %ls\n", exe_dir);
+        if (pjoin(path, KTSZ_MAX_PATH, tools->tools_dir, entries[i].name) != 0 ||
+            extract_resource(entries[i].id, path) != 0) {
+            wprintf(L"error: cannot extract embedded tool: %ls\n", entries[i].name);
+            delete_tree(tools->tools_dir);
+            tools->tools_dir[0] = L'\0';
             return 0;
         }
+
+        wstr_copy(entries[i].dst, KTSZ_MAX_PATH, path);
     }
 
     return 1;
